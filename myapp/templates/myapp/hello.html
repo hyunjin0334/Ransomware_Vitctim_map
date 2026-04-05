@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <title>Ransomware Victim Location Information Dashboard</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #222;
+        }
+
+        .page-title {
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 30px;
+        }
+
+        .page-description {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #555;
+            font-size: 16px;
+        }
+
+        .control-panel {
+            width: 92%;
+            margin: 0 auto 20px auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        .control-group select,
+        .control-group input,
+        .control-group button {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            box-sizing: border-box;
+        }
+
+        .control-group button {
+            cursor: pointer;
+            background-color: #222;
+            color: white;
+            border: none;
+        }
+
+        .control-group button:hover {
+            background-color: #444;
+        }
+
+        .stats-panel {
+            width: 92%;
+            margin: 0 auto 20px auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #222;
+        }
+
+        .message-box {
+            width: 92%;
+            margin: 0 auto 16px auto;
+            padding: 12px 16px;
+            background: #fff3cd;
+            color: #664d03;
+            border: 1px solid #ffecb5;
+            border-radius: 10px;
+            display: none;
+        }
+
+        #map {
+            height: 720px;
+            width: 92%;
+            margin: 0 auto 30px auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+
+<body>
+    <h1 class="page-title">Ransomware Victim Location Information Dashboard</h1>
+    <p class="page-description">
+        Interactive visualization of ransomware victim locations and attack metadata collected from public tracking sources
+    </p>
+
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="groupFilter">Group Filter</label>
+            <select id="groupFilter">
+                <option value="all">All Groups</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="countryFilter">Country Filter</label>
+            <select id="countryFilter">
+                <option value="all">All Countries</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="dateFilter">Date Filter</label>
+            <select id="dateFilter">
+                <option value="all">All Dates</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="180">Last 180 Days</option>
+                <option value="365">Last 365 Days</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="searchInput">Search Company</label>
+            <input type="text" id="searchInput" placeholder="Enter company name">
+        </div>
+
+        <div class="control-group">
+            <label for="resetButton">Reset</label>
+            <button id="resetButton" type="button">Reset Filters</button>
+        </div>
+    </div>
+
+    <div class="stats-panel">
+        <div class="stat-card">
+            <div class="stat-label">Visible Victims</div>
+            <div class="stat-value" id="visibleVictims">0</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Unique Groups</div>
+            <div class="stat-value" id="uniqueGroups">0</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Unique Countries</div>
+            <div class="stat-value" id="uniqueCountries">0</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Mapped Records</div>
+            <div class="stat-value" id="mappedRecords">0</div>
+        </div>
+    </div>
+
+    <div class="message-box" id="messageBox">
+        No records matched the current filters.
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <script>
+        let fullData = [];
+        let map;
+        let markersLayer;
+
+        async function fetchData() {
+            try {
+                const response = await fetch('{% static "myapp/company_locations.json" %}');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching JSON data:', error);
+                return [];
+            }
+        }
+
+        function normalizeValue(value) {
+            if (value === null || value === undefined || String(value).trim() === '') {
+                return 'N/A';
+            }
+            return String(value).trim();
+        }
+
+        function isValidCoordinate(value) {
+            return value !== null && value !== undefined && !Number.isNaN(Number(value));
+        }
+
+        function parseAttackDate(value) {
+            if (!value) return null;
+
+            const parsed = new Date(value);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed;
+            }
+
+            const simple = String(value).split(' ')[0];
+            const parsedSimple = new Date(simple);
+            if (!Number.isNaN(parsedSimple.getTime())) {
+                return parsedSimple;
+            }
+
+            return null;
+        }
+
+        function matchesDateFilter(item, days) {
+            if (days === 'all') return true;
+
+            const attackDate = parseAttackDate(item.attackdate);
+            if (!attackDate) return false;
+
+            const now = new Date();
+            const diffMs = now - attackDate;
+            const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+            return diffDays <= Number(days);
+        }
+
+        function populateFilters(data) {
+            const groupFilter = document.getElementById('groupFilter');
+            const countryFilter = document.getElementById('countryFilter');
+
+            const groups = [...new Set(data.map(item => normalizeValue(item.group)))].sort();
+            const countries = [...new Set(data.map(item => normalizeValue(item.country)))].sort();
+
+            groupFilter.innerHTML = '<option value="all">All Groups</option>';
+            countryFilter.innerHTML = '<option value="all">All Countries</option>';
+
+            groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group;
+                option.textContent = group;
+                groupFilter.appendChild(option);
+            });
+
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countryFilter.appendChild(option);
+            });
+        }
+
+        function getFilteredData() {
+            const groupValue = document.getElementById('groupFilter').value;
+            const countryValue = document.getElementById('countryFilter').value;
+            const dateValue = document.getElementById('dateFilter').value;
+            const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            return fullData.filter(item => {
+                const company = normalizeValue(item.company).toLowerCase();
+                const group = normalizeValue(item.group);
+                const country = normalizeValue(item.country);
+
+                const groupMatch = groupValue === 'all' || group === groupValue;
+                const countryMatch = countryValue === 'all' || country === countryValue;
+                const dateMatch = matchesDateFilter(item, dateValue);
+                const searchMatch = searchValue === '' || company.includes(searchValue);
+
+                return groupMatch && countryMatch && dateMatch && searchMatch;
+            });
+        }
+
+        function updateStats(filteredData) {
+            const visibleVictims = filteredData.length;
+            const uniqueGroups = new Set(filteredData.map(item => normalizeValue(item.group))).size;
+            const uniqueCountries = new Set(filteredData.map(item => normalizeValue(item.country))).size;
+            const mappedRecords = filteredData.filter(
+                item => isValidCoordinate(item.latitude) && isValidCoordinate(item.longitude)
+            ).length;
+
+            document.getElementById('visibleVictims').textContent = visibleVictims;
+            document.getElementById('uniqueGroups').textContent = uniqueGroups;
+            document.getElementById('uniqueCountries').textContent = uniqueCountries;
+            document.getElementById('mappedRecords').textContent = mappedRecords;
+        }
+
+        function updateMessage(filteredData) {
+            const messageBox = document.getElementById('messageBox');
+            if (filteredData.length === 0) {
+                messageBox.style.display = 'block';
+            } else {
+                messageBox.style.display = 'none';
+            }
+        }
+
+        function renderMarkers(filteredData) {
+            if (markersLayer) {
+                map.removeLayer(markersLayer);
+            }
+
+            markersLayer = L.markerClusterGroup();
+            const bounds = [];
+
+            filteredData.forEach(location => {
+                if (!isValidCoordinate(location.latitude) || !isValidCoordinate(location.longitude)) {
+                    return;
+                }
+
+                const lat = Number(location.latitude);
+                const lng = Number(location.longitude);
+
+                const marker = L.marker([lat, lng]);
+
+                marker.bindPopup(
+                    `<b>${normalizeValue(location.company)}</b><br>` +
+                    `Group: ${normalizeValue(location.group)}<br>` +
+                    `Country: ${normalizeValue(location.country)}<br>` +
+                    `Attack Date: ${normalizeValue(location.attackdate)}<br>` +
+                    `Phone: ${normalizeValue(location.phonenumber)}<br>` +
+                    `Source: ${normalizeValue(location.source)}`
+                );
+
+                markersLayer.addLayer(marker);
+                bounds.push([lat, lng]);
+            });
+
+            map.addLayer(markersLayer);
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [30, 30] });
+            } else {
+                map.setView([20.0, 0.0], 2);
+            }
+        }
+
+        function applyFilters() {
+            const filteredData = getFilteredData();
+            updateStats(filteredData);
+            updateMessage(filteredData);
+            renderMarkers(filteredData);
+        }
+
+        function resetFilters() {
+            document.getElementById('groupFilter').value = 'all';
+            document.getElementById('countryFilter').value = 'all';
+            document.getElementById('dateFilter').value = 'all';
+            document.getElementById('searchInput').value = '';
+            applyFilters();
+        }
+
+        async function initMap() {
+            fullData = await fetchData();
+
+            map = L.map('map').setView([20.0, 0.0], 2);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            populateFilters(fullData);
+            applyFilters();
+
+            document.getElementById('groupFilter').addEventListener('change', applyFilters);
+            document.getElementById('countryFilter').addEventListener('change', applyFilters);
+            document.getElementById('dateFilter').addEventListener('change', applyFilters);
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('resetButton').addEventListener('click', resetFilters);
+        }
+
+        initMap();
+    </script>
+</body>
+</html>
