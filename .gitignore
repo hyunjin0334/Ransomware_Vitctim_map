@@ -8,4 +8,6 @@ echo .vscode/
 echo *.log
 echo data/
 echo output/
+echo db.sqlite3
+echo python
 ) > .gitignore
