@@ -71,6 +71,7 @@ Frontend:
 ---
 
 ## Project Structure
+'''text
 myproject/
 ├── myapp/
 │ └── company.py
@@ -79,7 +80,7 @@ myproject/
 ├── images/
 ├── README.md
 └── requirements.txt
-
+'''
 ---
 
 ## Installation
