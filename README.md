@@ -86,24 +86,26 @@ myproject/
 ## Installation
 
 1. Clone repository
-   
-   ```bash
-   git clone https://github.com/your-username/ransomware-victim-map.git
-   cd ransomware-victim-map
-  ```
+
+```bash
+git clone https://github.com/your-username/ransomware-victim-map.git
+cd ransomware-victim-map
+```
 
 2. Create virtual environment
 
-  ```bash
-  Windows: python -m venv venv
-  venv\Scripts\activate
-  ```
+Windows:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
 
 3. Install dependencies
-   
-   ```bash
-   pip install -r requirements.txt
-   ```
+
+```bash
+pip install -r requirements.txt
+```
 ---
 
 ## Run
